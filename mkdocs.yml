@@ -1,0 +1,53 @@
+site_name: Atelier
+site_url: https://pblaney-atelier.github.io
+site_description: Workshop for Genomic Data Science
+site_author: Patrick Blaney
+theme:
+  name: material
+  font:
+    text: Merriweather Sans
+    code: Red Hat Mono
+  features:
+    - navigation.tabs
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - toc.integrate
+  palette:
+    # Dark mode
+    - scheme: slate
+      primary: indigo
+      accent: light green
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+    # Light mode
+    - scheme: default
+      primary: indigo
+      accent: red
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+
+nav:
+  - Home: index.md
+  - Scripts: scripts.md
+  - Resources: resources.md
+  - Templates: templates.md
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/pblaney/atelier
+    - icon: fontawesome/brands/orcid
+      link: https://orcid.org/0000-0002-9319-8866
