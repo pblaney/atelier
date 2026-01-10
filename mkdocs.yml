@@ -33,10 +33,13 @@ theme:
 nav:
   - Home: index.md
   - Scripts: scripts.md
+  - Reference:
+      - s3Mover: "man/s3mover.md"
   - Resources: resources.md
   - Templates: templates.md
 
 markdown_extensions:
+  - tables
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span

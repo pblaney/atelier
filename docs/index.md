@@ -1,13 +1,17 @@
 # Workshop for Genomic Data Science
 
-## Scripts
+## [Scripts](scripts.md)
 
-Placeholder
+A collection of scripts to help with anything from managing data to executing specific workflows.
+
+### Reference
+
+Man pages for scripts
 
 ## [Resources](resources.md)
 
-Placeholder
+Files, websites, software, and papers I find useful.
 
 ## [Templates](templates.md)
 
-Placeholder
+Files to use as a starting point for scripts, READMEs, and other things
