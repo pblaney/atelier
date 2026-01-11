@@ -1,4 +1,4 @@
-![logo](docs/assets/atelier-logo-png)
+![logo](docs/assets/atelier-logo.png)
 
 >Workshop for Genomic Data Science
 
