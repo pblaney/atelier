@@ -21,12 +21,13 @@ Help()
     echo "  - S3 to S3 (transfer within/across buckets)"
     echo
     echo "Usage:"
-    echo '  sbatch --job-name=[jobName] ~/atelier/bin/s3Mover.sh -s [source] -d [dest] [options]'
+    echo '  sbatch --job-name=[jobName] s3Mover.sh -s [source] -d [dest] [options]'
     echo
     echo "Required Arguments:"
     echo "  -s [source]     Source path - can be:"
     echo "                    - S3 URI: s3://bucket/path/file or s3://bucket/path/"
     echo "                    - Local path: /path/to/file or /path/to/directory/"
+    echo "                    - Relative path: ./path or path/to/file"
     echo "  -d [dest]       Destination path - can be:"
     echo "                    - S3 URI: s3://bucket/path/"
     echo "                    - Local path: /path/to/directory/"
@@ -49,33 +50,33 @@ Help()
     echo "Usage Examples:"
     echo
     echo "  # Upload a local file to S3"
-    echo '  sbatch --job-name=upload ~/atelier/bin/s3Mover.sh -s /data/sample.bam -d s3://mybucket/data/'
+    echo '  sbatch --job-name=upload s3Mover.sh -s /data/sample.bam -d s3://mybucket/data/'
     echo
     echo "  # Upload with GLACIER storage class"
-    echo '  sbatch --job-name=archive ~/atelier/bin/s3Mover.sh -s /data/sample.bam -d s3://mybucket/archive/ -c GLACIER'
+    echo '  sbatch --job-name=archive s3Mover.sh -s /data/sample.bam -d s3://mybucket/archive/ -c GLACIER'
     echo
     echo "  # Upload directory recursively to DEEP_ARCHIVE"
-    echo '  sbatch --job-name=deep-archive ~/atelier/bin/s3Mover.sh -s /data/project/ -d s3://mybucket/archive/ -r -c DEEP_ARCHIVE'
+    echo '  sbatch --job-name=deep-archive s3Mover.sh -s /data/project/ -d s3://mybucket/archive/ -r -c DEEP_ARCHIVE'
     echo
     echo "  # Download from S3 to local"
-    echo '  sbatch --job-name=download ~/atelier/bin/s3Mover.sh -s s3://mybucket/data/file.bam -d /local/data/'
+    echo '  sbatch --job-name=download s3Mover.sh -s s3://mybucket/data/file.bam -d /local/data/'
     echo
     echo "  # Download S3 directory recursively"
-    echo '  sbatch --job-name=download-dir ~/atelier/bin/s3Mover.sh -s s3://mybucket/data/project/ -d /local/data/project/ -r'
+    echo '  sbatch --job-name=download-dir s3Mover.sh -s s3://mybucket/data/project/ -d /local/data/project/ -r'
     echo
     echo "  # Move files within S3"
-    echo '  sbatch --job-name=s3move ~/atelier/bin/s3Mover.sh -s s3://mybucket/data/file.bam -d s3://mybucket/archive/'
+    echo '  sbatch --job-name=s3move s3Mover.sh -s s3://mybucket/data/file.bam -d s3://mybucket/archive/'
     echo
     echo "  # Transfer files from a list (mixed local/S3 sources)"
-    echo '  sbatch --job-name=batch ~/atelier/bin/s3Mover.sh -f files_to_transfer.txt -d s3://mybucket/archive/'
+    echo '  sbatch --job-name=batch s3Mover.sh -f files_to_transfer.txt -d s3://mybucket/archive/'
     echo
     echo "  # Dry run to preview operations"
-    echo '  sbatch --job-name=preview ~/atelier/bin/s3Mover.sh -s /data/project/ -d s3://mybucket/data/ -r -n'
+    echo '  sbatch --job-name=preview s3Mover.sh -s /data/project/ -d s3://mybucket/data/ -r -n'
     echo
     echo "Storage Class Information:"
-    echo "  STANDARD      - Default, Frequently accessed data, highest availability, e.g. new/active/unprocessed files"
-    echo "  GLACIER       - Archive data, retrieval in minutes to hours, e.g. older data/fully processed BAMs "
-    echo "  DEEP_ARCHIVE  - Long-term archive, retrieval in 12-48 hours, lowest cost, e.g. raw data after processing"
+    echo "  STANDARD      - Frequently accessed data, highest availability"
+    echo "  GLACIER       - Archive data, retrieval in minutes to hours"
+    echo "  DEEP_ARCHIVE  - Long-term archive, retrieval in 12-48 hours, lowest cost"
     echo
 }
 
@@ -142,10 +143,53 @@ is_s3_path() {
     [[ "$path" =~ ^s3:// ]]
 }
 
-# Function to check if path is a local path
-is_local_path() {
+# Function to convert local path to absolute path
+# This handles relative paths, ./, ../, and already absolute paths
+get_absolute_path() {
     local path="$1"
-    [[ "$path" =~ ^/ ]] || [[ "$path" =~ ^\./ ]] || [[ "$path" =~ ^\.\./ ]] || [[ ! "$path" =~ ^s3:// ]]
+    
+    # If it's an S3 path, return as-is
+    if is_s3_path "$path"; then
+        echo "$path"
+        return
+    fi
+    
+    # Check if path exists
+    if [ -e "$path" ]; then
+        # For existing paths, use realpath or fallback method
+        if command -v realpath &> /dev/null; then
+            realpath "$path"
+        else
+            # Fallback for systems without realpath
+            if [ -d "$path" ]; then
+                (cd "$path" && pwd)
+            else
+                local dir=$(dirname "$path")
+                local base=$(basename "$path")
+                (cd "$dir" && pwd)/"$base"
+            fi
+        fi
+    else
+        # Path doesn't exist yet (might be destination)
+        # Try to resolve parent directory
+        local dir=$(dirname "$path")
+        local base=$(basename "$path")
+        
+        if [ -d "$dir" ]; then
+            if command -v realpath &> /dev/null; then
+                echo "$(realpath "$dir")/$base"
+            else
+                echo "$(cd "$dir" && pwd)/$base"
+            fi
+        else
+            # Parent doesn't exist either, just prepend PWD for relative paths
+            if [[ "$path" =~ ^/ ]]; then
+                echo "$path"
+            else
+                echo "$(pwd)/$path"
+            fi
+        fi
+    fi
 }
 
 # Function to validate S3 path format
@@ -173,7 +217,7 @@ validate_local_path() {
         # For destination, check if parent directory exists or can be created
         local parent_dir=$(dirname "$path")
         if [ ! -d "$parent_dir" ]; then
-            echo "[$(timestamp)] WARNING: Parent directory does not exist, will attempt to create: $parent_dir"
+            echo "[$(timestamp)] INFO: Parent directory does not exist, will attempt to create: $parent_dir"
         fi
     fi
     return 0
@@ -219,7 +263,8 @@ get_file_size() {
         echo "$file_info" | awk '{print $3}'
     else
         if [ -f "$path" ]; then
-            stat -f%z "$path" 2>/dev/null || stat -c%s "$path" 2>/dev/null || echo ""
+            # Try GNU stat first, then BSD stat
+            stat --printf="%s" "$path" 2>/dev/null || stat -f%z "$path" 2>/dev/null || echo ""
         else
             echo ""
         fi
@@ -231,11 +276,14 @@ get_transfer_type() {
     local source="$1"
     local dest="$2"
     
-    if is_s3_path "$source" && is_s3_path "$dest"; then
+    local source_is_s3=$(is_s3_path "$source" && echo "true" || echo "false")
+    local dest_is_s3=$(is_s3_path "$dest" && echo "true" || echo "false")
+    
+    if [ "$source_is_s3" = "true" ] && [ "$dest_is_s3" = "true" ]; then
         echo "s3_to_s3"
-    elif is_s3_path "$source" && is_local_path "$dest"; then
+    elif [ "$source_is_s3" = "true" ] && [ "$dest_is_s3" = "false" ]; then
         echo "s3_to_local"
-    elif is_local_path "$source" && is_s3_path "$dest"; then
+    elif [ "$source_is_s3" = "false" ] && [ "$dest_is_s3" = "true" ]; then
         echo "local_to_s3"
     else
         echo "local_to_local"
@@ -288,32 +336,34 @@ transfer_file() {
     fi
     
     # Create destination directory for local destinations
-    if is_local_path "$dest_path"; then
+    if ! is_s3_path "$dest_path"; then
         mkdir -p "$(dirname "$dest_file")"
     fi
     
     # Perform the transfer based on type and mode
+    local transfer_success=false
+    
     case "$transfer_type" in
         s3_to_s3)
             if [ "$keep_source" = "true" ]; then
                 if aws s3 cp "$source_file" "$dest_file" $storage_class_opt --only-show-errors; then
                     echo "[$(timestamp)] SUCCESS: Copied $filename"
-                    return 0
+                    transfer_success=true
                 fi
             else
                 # S3 move: copy with storage class, then delete
                 if aws s3 cp "$source_file" "$dest_file" $storage_class_opt --only-show-errors; then
                     if aws s3 rm "$source_file" --only-show-errors; then
                         echo "[$(timestamp)] SUCCESS: Moved $filename"
-                        return 0
+                        transfer_success=true
                     else
                         echo "[$(timestamp)] WARNING: Copied but failed to delete source: $filename"
-                        return 1
                     fi
                 fi
             fi
             ;;
         local_to_s3)
+            echo "[$(timestamp)] DEBUG: Executing: aws s3 cp \"$source_file\" \"$dest_file\" $storage_class_opt --only-show-errors"
             if aws s3 cp "$source_file" "$dest_file" $storage_class_opt --only-show-errors; then
                 if [ "$keep_source" = "true" ]; then
                     echo "[$(timestamp)] SUCCESS: Uploaded $filename"
@@ -321,7 +371,7 @@ transfer_file() {
                     rm -f "$source_file"
                     echo "[$(timestamp)] SUCCESS: Uploaded and removed local $filename"
                 fi
-                return 0
+                transfer_success=true
             fi
             ;;
         s3_to_local)
@@ -332,26 +382,30 @@ transfer_file() {
                     aws s3 rm "$source_file" --only-show-errors
                     echo "[$(timestamp)] SUCCESS: Downloaded and removed S3 $filename"
                 fi
-                return 0
+                transfer_success=true
             fi
             ;;
         local_to_local)
             if [ "$keep_source" = "true" ]; then
                 if cp "$source_file" "$dest_file"; then
                     echo "[$(timestamp)] SUCCESS: Copied $filename"
-                    return 0
+                    transfer_success=true
                 fi
             else
                 if mv "$source_file" "$dest_file"; then
                     echo "[$(timestamp)] SUCCESS: Moved $filename"
-                    return 0
+                    transfer_success=true
                 fi
             fi
             ;;
     esac
     
-    echo "[$(timestamp)] FAILED: Could not transfer $filename"
-    return 1
+    if [ "$transfer_success" = "true" ]; then
+        return 0
+    else
+        echo "[$(timestamp)] FAILED: Could not transfer $filename"
+        return 1
+    fi
 }
 
 #################### Parse Arguments ####################
@@ -433,30 +487,28 @@ if ! validate_storage_class "$STORAGE_CLASS"; then
     exit 1
 fi
 
-# Validate destination path based on type
+# Convert and validate destination path
+echo "[$(timestamp)] Original destination: $DEST_PATH"
+
 if is_s3_path "$DEST_PATH"; then
     if ! validate_s3_path "$DEST_PATH"; then
         exit 1
     fi
     # Ensure S3 destination ends with /
     DEST_PATH="${DEST_PATH%/}/"
+    DEST_TYPE="S3"
 else
-    # Local destination - convert to absolute path and ensure directory format
-    DEST_PATH=$(cd "$(dirname "$DEST_PATH")" 2>/dev/null && pwd)/$(basename "$DEST_PATH") || DEST_PATH="$DEST_PATH"
+    # Local destination - convert to absolute path
+    DEST_PATH=$(get_absolute_path "$DEST_PATH")
     DEST_PATH="${DEST_PATH%/}/"
+    DEST_TYPE="Local"
+    
     if ! validate_local_path "$DEST_PATH" "dest"; then
         exit 1
     fi
 fi
 
-# Determine if destination is S3 or local
-if is_s3_path "$DEST_PATH"; then
-    DEST_TYPE="S3"
-else
-    DEST_TYPE="Local"
-fi
-
-echo "[$(timestamp)] Destination: $DEST_PATH ($DEST_TYPE)"
+echo "[$(timestamp)] Resolved destination: $DEST_PATH ($DEST_TYPE)"
 echo "[$(timestamp)] Storage Class: $STORAGE_CLASS"
 echo "[$(timestamp)] Recursive: $RECURSIVE"
 echo "[$(timestamp)] Dry run: $DRY_RUN"
@@ -478,8 +530,10 @@ if [ -n "$FILE_LIST" ]; then
     echo "[$(timestamp)] File list: $FILE_LIST"
 fi
 
-# If source path provided, validate it
+# If source path provided, validate and convert it
 if [ -n "$SOURCE_PATH" ]; then
+    echo "[$(timestamp)] Original source: $SOURCE_PATH"
+    
     if is_s3_path "$SOURCE_PATH"; then
         if ! validate_s3_path "$SOURCE_PATH"; then
             exit 1
@@ -490,19 +544,25 @@ if [ -n "$SOURCE_PATH" ]; then
             echo "[$(timestamp)] WARNING: Source path may not exist or may be empty: $SOURCE_PATH"
         fi
     else
-        # Local source - convert to absolute path
-        if [ -e "$SOURCE_PATH" ]; then
-            SOURCE_PATH=$(cd "$(dirname "$SOURCE_PATH")" && pwd)/$(basename "$SOURCE_PATH")
-        fi
+        # Local source - convert to absolute path BEFORE validation
+        SOURCE_PATH=$(get_absolute_path "$SOURCE_PATH")
         SOURCE_TYPE="Local"
+        
         if ! validate_local_path "$SOURCE_PATH" "source"; then
             exit 1
         fi
+        
+        # Additional check: if source is a directory without -r flag
+        if [ -d "$SOURCE_PATH" ] && [ "$RECURSIVE" = false ]; then
+            echo "[$(timestamp)] ERROR: Source is a directory. Use -r for recursive mode."
+            exit 1
+        fi
     fi
-    echo "[$(timestamp)] Source: $SOURCE_PATH ($SOURCE_TYPE)"
+    
+    echo "[$(timestamp)] Resolved source: $SOURCE_PATH ($SOURCE_TYPE)"
 fi
 
-# Determine transfer type for reporting
+# Determine and display transfer type
 if [ -n "$SOURCE_PATH" ]; then
     TRANSFER_TYPE=$(get_transfer_type "$SOURCE_PATH" "$DEST_PATH")
     echo "[$(timestamp)] Transfer type: $TRANSFER_TYPE"
@@ -512,15 +572,28 @@ fi
 
 print_header "Environment Setup"
 
-# Try to load AWS CLI module (common on HPC systems)
-if command -v module &> /dev/null; then
-    echo "[$(timestamp)] Loading AWS CLI module..."
-    module load aws-cli 2>/dev/null || module load awscli 2>/dev/null || echo "[$(timestamp)] No AWS CLI module found, using system AWS CLI"
-    module list -t 2>&1 || true
+# Determine if we need AWS CLI
+NEED_AWS=false
+if is_s3_path "$DEST_PATH"; then
+    NEED_AWS=true
+fi
+if [ -n "$SOURCE_PATH" ] && is_s3_path "$SOURCE_PATH"; then
+    NEED_AWS=true
+fi
+if [ -n "$FILE_LIST" ]; then
+    # Might have S3 paths in file list, so load AWS CLI to be safe
+    NEED_AWS=true
 fi
 
-# Verify AWS CLI is available (needed for any S3 operations)
-if is_s3_path "$SOURCE_PATH" || is_s3_path "$DEST_PATH" || [ -n "$FILE_LIST" ]; then
+if [ "$NEED_AWS" = true ]; then
+    # Try to load AWS CLI module (common on HPC systems)
+    if command -v module &> /dev/null; then
+        echo "[$(timestamp)] Loading AWS CLI module..."
+        module load aws-cli 2>/dev/null || module load awscli 2>/dev/null || echo "[$(timestamp)] No AWS CLI module found, using system AWS CLI"
+        module list -t 2>&1 || true
+    fi
+    
+    # Verify AWS CLI is available
     if ! command -v aws &> /dev/null; then
         echo "[$(timestamp)] ERROR: AWS CLI is not installed or not in PATH"
         exit 1
@@ -538,6 +611,8 @@ if is_s3_path "$SOURCE_PATH" || is_s3_path "$DEST_PATH" || [ -n "$FILE_LIST" ]; 
         echo "[$(timestamp)] ERROR: AWS credentials not configured or invalid"
         exit 1
     fi
+else
+    echo "[$(timestamp)] Local-only transfer, AWS CLI not required"
 fi
 
 #################### Build File List ####################
@@ -560,13 +635,19 @@ if [ -n "$FILE_LIST" ]; then
         # Trim whitespace
         line=$(echo "$line" | xargs)
         
-        # Handle relative paths
-        if ! is_s3_path "$line" && [[ ! "$line" =~ ^/ ]]; then
-            if [ -n "$SOURCE_PATH" ]; then
-                line="${SOURCE_PATH%/}/${line}"
-            else
-                echo "[$(timestamp)] WARNING: Skipping relative path without source: $line"
-                continue
+        # Convert to absolute path if it's a relative local path
+        if ! is_s3_path "$line"; then
+            if [[ ! "$line" =~ ^/ ]]; then
+                # Relative path - prepend source path or current directory
+                if [ -n "$SOURCE_PATH" ] && ! is_s3_path "$SOURCE_PATH"; then
+                    line="${SOURCE_PATH%/}/${line}"
+                else
+                    line="$(pwd)/${line}"
+                fi
+            fi
+            # Convert to absolute path
+            if [ -e "$line" ]; then
+                line=$(get_absolute_path "$line")
             fi
         fi
         
@@ -581,8 +662,14 @@ if [ -n "$SOURCE_PATH" ] && [ -z "$FILE_LIST" ]; then
         
         if is_s3_path "$SOURCE_PATH"; then
             # S3 recursive listing
-            aws s3 ls "$SOURCE_PATH" --recursive | awk '{print $4}' | while read -r file; do
-                [ -n "$file" ] && echo "s3://$(echo "$SOURCE_PATH" | sed 's|s3://||' | cut -d'/' -f1)/$file" >> "$TEMP_FILE_LIST"
+            # Extract bucket name
+            local_bucket=$(echo "$SOURCE_PATH" | sed 's|s3://||' | cut -d'/' -f1)
+            aws s3 ls "$SOURCE_PATH" --recursive | while read -r line; do
+                # Skip empty lines
+                [ -z "$line" ] && continue
+                # Extract the file path (4th field onwards, as paths may have spaces)
+                file_path=$(echo "$line" | awk '{$1=$2=$3=""; print $0}' | sed 's/^[ ]*//')
+                [ -n "$file_path" ] && echo "s3://${local_bucket}/${file_path}" >> "$TEMP_FILE_LIST"
             done
         else
             # Local recursive listing
@@ -628,7 +715,7 @@ fi
 
 #################### Create Local Destination Directory ####################
 
-if is_local_path "$DEST_PATH" && [ "$DRY_RUN" = "false" ]; then
+if ! is_s3_path "$DEST_PATH" && [ "$DRY_RUN" = "false" ]; then
     echo
     echo "[$(timestamp)] Creating local destination directory: $DEST_PATH"
     mkdir -p "$DEST_PATH"
@@ -679,36 +766,46 @@ while IFS= read -r source_file || [ -n "$source_file" ]; do
         fi
     fi
     
-    # Determine destination path
+    # Determine destination path (preserving directory structure for recursive)
+    file_dest="$DEST_PATH"
+    
     if [ -n "$SOURCE_PATH" ] && [ "$RECURSIVE" = true ]; then
         # For recursive mode, preserve directory structure
         if is_s3_path "$SOURCE_PATH"; then
-            # Extract bucket and prefix from SOURCE_PATH
+            # S3 source - extract relative path
+            # Remove the s3://bucket/ prefix and the source prefix
             source_prefix="${SOURCE_PATH#s3://}"
             source_prefix="${source_prefix#*/}"  # Remove bucket name
             source_prefix="${source_prefix%/}"   # Remove trailing slash
             
-            # Extract the relative path from source file
             file_path="${source_file#s3://}"
             file_path="${file_path#*/}"  # Remove bucket name
             
-            # Calculate relative path
             if [ -n "$source_prefix" ]; then
                 relative_path="${file_path#$source_prefix/}"
             else
                 relative_path="$file_path"
             fi
         else
-            # Local source
-            relative_path="${source_file#${SOURCE_PATH%/}/}"
+            # Local source - extract relative path
+            # SOURCE_PATH is already absolute, source_file should also be absolute
+            source_base="${SOURCE_PATH%/}"
+            relative_path="${source_file#$source_base/}"
         fi
         
-        file_dest="${DEST_PATH%/}/$(dirname "$relative_path")/"
-        # Clean up double slashes and trailing slashes
-        file_dest=$(echo "$file_dest" | sed 's|/\+|/|g' | sed 's|/\.$|/|')
-    else
-        file_dest="$DEST_PATH"
+        # Build destination with preserved directory structure
+        relative_dir=$(dirname "$relative_path")
+        if [ "$relative_dir" != "." ]; then
+            file_dest="${DEST_PATH%/}/${relative_dir}/"
+        fi
+        
+        # Clean up path
+        file_dest=$(echo "$file_dest" | sed 's|/\+|/|g')
     fi
+    
+    echo "[$(timestamp)] DEBUG: source_file=$source_file"
+    echo "[$(timestamp)] DEBUG: file_dest=$file_dest"
+    echo "[$(timestamp)] DEBUG: transfer_type=$file_transfer_type"
     
     # Transfer the file
     if transfer_file "$source_file" "$file_dest" "$KEEP_SOURCE" "$DRY_RUN" "$STORAGE_CLASS" "$file_transfer_type"; then
@@ -740,6 +837,7 @@ echo "  Successful:            $SUCCESS_COUNT"
 echo "  Failed:                $FAIL_COUNT"
 echo "  Skipped:               $SKIP_COUNT"
 echo
+echo "  Source:                ${SOURCE_PATH:-"(from file list)"}"
 echo "  Destination:           $DEST_PATH"
 echo "  Mode:                  $([ "$KEEP_SOURCE" = true ] && echo "COPY" || echo "MOVE")"
 echo "  Storage Class:         $STORAGE_CLASS"
