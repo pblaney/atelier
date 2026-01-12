@@ -162,31 +162,35 @@ get_absolute_path() {
         else
             # Fallback for systems without realpath
             if [ -d "$path" ]; then
-                (cd "$path" && pwd)
+                echo "$(cd "$path" && pwd)"
             else
-                local dir=$(dirname "$path")
-                local base=$(basename "$path")
-                (cd "$dir" && pwd)/"$base"
+                local dir
+                local base
+                dir=$(dirname "$path")
+                base=$(basename "$path")
+                echo "$(cd "$dir" && pwd)/${base}"
             fi
         fi
     else
         # Path doesn't exist yet (might be destination)
         # Try to resolve parent directory
-        local dir=$(dirname "$path")
-        local base=$(basename "$path")
+        local dir
+        local base
+        dir=$(dirname "$path")
+        base=$(basename "$path")
         
         if [ -d "$dir" ]; then
             if command -v realpath &> /dev/null; then
-                echo "$(realpath "$dir")/$base"
+                echo "$(realpath "$dir")/${base}"
             else
-                echo "$(cd "$dir" && pwd)/$base"
+                echo "$(cd "$dir" && pwd)/${base}"
             fi
         else
             # Parent doesn't exist either, just prepend PWD for relative paths
             if [[ "$path" =~ ^/ ]]; then
                 echo "$path"
             else
-                echo "$(pwd)/$path"
+                echo "$(pwd)/${path}"
             fi
         fi
     fi
