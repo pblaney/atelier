@@ -50,29 +50,29 @@ Help()
     echo "Usage Examples:"
     echo
     echo "  # Upload a local file to S3"
-    echo '  sbatch --job-name=upload s3Mover.sh -s /data/sample.bam -d s3://mybucket/data/'
+    echo '  sbatch --job-name=upload ~/atelier/bin/s3Mover.sh -s /data/sample.bam -d s3://mybucket/data/'
     echo
     echo "  # Upload with GLACIER storage class"
-    echo '  sbatch --job-name=archive s3Mover.sh -s /data/sample.bam -d s3://mybucket/archive/ -c GLACIER'
+    echo '  sbatch --job-name=archive ~/atelier/bin/s3Mover.sh -s /data/sample.bam -d s3://mybucket/archive/ -c GLACIER'
     echo
     echo "  # Upload directory recursively to DEEP_ARCHIVE (preserves directory name)"
-    echo '  sbatch --job-name=deep-archive s3Mover.sh -s /data/project/ -d s3://mybucket/archive/ -r -c DEEP_ARCHIVE'
+    echo '  sbatch --job-name=deep-archive ~/atelier/bin/s3Mover.sh -s /data/project/ -d s3://mybucket/archive/ -r -c DEEP_ARCHIVE'
     echo '  # Result: s3://mybucket/archive/project/...'
     echo
     echo "  # Download from S3 to local"
-    echo '  sbatch --job-name=download s3Mover.sh -s s3://mybucket/data/file.bam -d /local/data/'
+    echo '  sbatch --job-name=download ~/atelier/bin/s3Mover.sh -s s3://mybucket/data/file.bam -d /local/data/'
     echo
     echo "  # Download S3 directory recursively"
-    echo '  sbatch --job-name=download-dir s3Mover.sh -s s3://mybucket/data/project/ -d /local/data/ -r'
+    echo '  sbatch --job-name=download-dir ~/atelier/bin/s3Mover.sh -s s3://mybucket/data/project/ -d /local/data/ -r'
     echo
     echo "  # Copy files within S3"
-    echo '  sbatch --job-name=s3copy s3Mover.sh -s s3://mybucket/data/file.bam -d s3://mybucket/archive/'
+    echo '  sbatch --job-name=s3copy ~/atelier/bin/s3Mover.sh -s s3://mybucket/data/file.bam -d s3://mybucket/archive/'
     echo
     echo "  # Copy files from a list"
-    echo '  sbatch --job-name=batch s3Mover.sh -f files_to_copy.txt -d s3://mybucket/archive/'
+    echo '  sbatch --job-name=batch ~/atelier/bin/s3Mover.sh -f files_to_copy.txt -d s3://mybucket/archive/'
     echo
     echo "  # Dry run to preview operations"
-    echo '  sbatch --job-name=preview s3Mover.sh -s /data/project/ -d s3://mybucket/data/ -r -n'
+    echo '  sbatch --job-name=preview ~/atelier/bin/s3Mover.sh -s /data/project/ -d s3://mybucket/data/ -r -n'
     echo
     echo "Storage Class Information:"
     echo "  STANDARD      - Frequently accessed data, highest availability"
