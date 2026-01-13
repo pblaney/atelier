@@ -12,13 +12,14 @@
 Help()
 {
     # Display help message
-    echo "This script moves/copies files between local filesystem and S3, or within S3"
+    echo "This script copies files between local filesystem and S3, or within S3"
+    echo "Source files are always preserved (copy mode only)"
     echo "It supports batch processing of multiple files via a text file input"
     echo
     echo "Supported Transfer Types:"
     echo "  - Local to S3 (upload)"
     echo "  - S3 to Local (download)"
-    echo "  - S3 to S3 (transfer within/across buckets)"
+    echo "  - S3 to S3 (copy within/across buckets)"
     echo
     echo "Usage:"
     echo '  sbatch --job-name=[jobName] s3Mover.sh -s [source] -d [dest] [options]'
@@ -33,10 +34,9 @@ Help()
     echo "                    - Local path: /path/to/directory/"
     echo
     echo "Optional Arguments:"
-    echo "  -f [fileList]   Text file containing list of file paths to transfer (one per line)"
-    echo "  -r              Recursive mode - transfer all files in source directory"
-    echo "  -n              Dry run - show what would be transferred without actually doing it"
-    echo "  -k              Keep source files (copy instead of move)"
+    echo "  -f [fileList]   Text file containing list of file paths to copy (one per line)"
+    echo "  -r              Recursive mode - copy all files in source directory"
+    echo "  -n              Dry run - show what would be copied without actually doing it"
     echo "  -c [class]      S3 storage class for uploads (default: STANDARD)"
     echo "                    Options: STANDARD, GLACIER, DEEP_ARCHIVE"
     echo "  -h              Print this help message"
@@ -65,11 +65,11 @@ Help()
     echo "  # Download S3 directory recursively"
     echo '  sbatch --job-name=download-dir s3Mover.sh -s s3://mybucket/data/project/ -d /local/data/ -r'
     echo
-    echo "  # Move files within S3"
-    echo '  sbatch --job-name=s3move s3Mover.sh -s s3://mybucket/data/file.bam -d s3://mybucket/archive/'
+    echo "  # Copy files within S3"
+    echo '  sbatch --job-name=s3copy s3Mover.sh -s s3://mybucket/data/file.bam -d s3://mybucket/archive/'
     echo
-    echo "  # Transfer files from a list (mixed local/S3 sources)"
-    echo '  sbatch --job-name=batch s3Mover.sh -f files_to_transfer.txt -d s3://mybucket/archive/'
+    echo "  # Copy files from a list"
+    echo '  sbatch --job-name=batch s3Mover.sh -f files_to_copy.txt -d s3://mybucket/archive/'
     echo
     echo "  # Dry run to preview operations"
     echo '  sbatch --job-name=preview s3Mover.sh -s /data/project/ -d s3://mybucket/data/ -r -n'
@@ -287,14 +287,13 @@ get_transfer_type() {
     fi
 }
 
-# Function to transfer a single file
-transfer_file() {
+# Function to copy a single file
+copy_file() {
     local source_file="$1"
     local dest_file="$2"
-    local keep_source="$3"
-    local dry_run="$4"
-    local storage_class="$5"
-    local transfer_type="$6"
+    local dry_run="$3"
+    local storage_class="$4"
+    local transfer_type="$5"
     
     # Get file size for reporting
     local file_size
@@ -309,15 +308,15 @@ transfer_file() {
     fi
     
     if [ "$dry_run" = "true" ]; then
-        echo "[$(timestamp)] [DRY RUN] Would transfer: $source_file -> $dest_file ($formatted_size)"
+        echo "[$(timestamp)] [DRY RUN] Would copy: $source_file -> $dest_file ($formatted_size)"
         if [ -n "$storage_class_opt" ]; then
             echo "[$(timestamp)] [DRY RUN] Storage class: $storage_class"
         fi
         return 0
     fi
     
-    echo "[$(timestamp)] Transferring: $source_file ($formatted_size)"
-    echo "[$(timestamp)]          -> $dest_file"
+    echo "[$(timestamp)] Copying: $source_file ($formatted_size)"
+    echo "[$(timestamp)]      -> $dest_file"
     if [ "$transfer_type" = "local_to_s3" ] || [ "$transfer_type" = "s3_to_s3" ]; then
         echo "[$(timestamp)] Storage class: $storage_class"
     fi
@@ -329,69 +328,40 @@ transfer_file() {
         mkdir -p "$dest_dir"
     fi
     
-    # Perform the transfer based on type and mode
-    local transfer_success="false"
+    # Perform the copy based on transfer type
+    local copy_success="false"
     
     case "$transfer_type" in
         s3_to_s3)
-            if [ "$keep_source" = "true" ]; then
-                if aws s3 cp "$source_file" "$dest_file" $storage_class_opt --only-show-errors; then
-                    echo "[$(timestamp)] SUCCESS: Copied $(basename "$source_file")"
-                    transfer_success="true"
-                fi
-            else
-                # S3 move: copy with storage class, then delete
-                if aws s3 cp "$source_file" "$dest_file" $storage_class_opt --only-show-errors; then
-                    if aws s3 rm "$source_file" --only-show-errors; then
-                        echo "[$(timestamp)] SUCCESS: Moved $(basename "$source_file")"
-                        transfer_success="true"
-                    else
-                        echo "[$(timestamp)] WARNING: Copied but failed to delete source"
-                    fi
-                fi
+            if aws s3 cp "$source_file" "$dest_file" $storage_class_opt --only-show-errors; then
+                echo "[$(timestamp)] SUCCESS: Copied $(basename "$source_file")"
+                copy_success="true"
             fi
             ;;
         local_to_s3)
             if aws s3 cp "$source_file" "$dest_file" $storage_class_opt --only-show-errors; then
-                if [ "$keep_source" = "true" ]; then
-                    echo "[$(timestamp)] SUCCESS: Uploaded $(basename "$source_file")"
-                else
-                    rm -f "$source_file"
-                    echo "[$(timestamp)] SUCCESS: Uploaded and removed local $(basename "$source_file")"
-                fi
-                transfer_success="true"
+                echo "[$(timestamp)] SUCCESS: Uploaded $(basename "$source_file")"
+                copy_success="true"
             fi
             ;;
         s3_to_local)
             if aws s3 cp "$source_file" "$dest_file" --only-show-errors; then
-                if [ "$keep_source" = "true" ]; then
-                    echo "[$(timestamp)] SUCCESS: Downloaded $(basename "$source_file")"
-                else
-                    aws s3 rm "$source_file" --only-show-errors
-                    echo "[$(timestamp)] SUCCESS: Downloaded and removed S3 $(basename "$source_file")"
-                fi
-                transfer_success="true"
+                echo "[$(timestamp)] SUCCESS: Downloaded $(basename "$source_file")"
+                copy_success="true"
             fi
             ;;
         local_to_local)
-            if [ "$keep_source" = "true" ]; then
-                if cp "$source_file" "$dest_file"; then
-                    echo "[$(timestamp)] SUCCESS: Copied $(basename "$source_file")"
-                    transfer_success="true"
-                fi
-            else
-                if mv "$source_file" "$dest_file"; then
-                    echo "[$(timestamp)] SUCCESS: Moved $(basename "$source_file")"
-                    transfer_success="true"
-                fi
+            if cp "$source_file" "$dest_file"; then
+                echo "[$(timestamp)] SUCCESS: Copied $(basename "$source_file")"
+                copy_success="true"
             fi
             ;;
     esac
     
-    if [ "$transfer_success" = "true" ]; then
+    if [ "$copy_success" = "true" ]; then
         return 0
     else
-        echo "[$(timestamp)] FAILED: Could not transfer $(basename "$source_file")"
+        echo "[$(timestamp)] FAILED: Could not copy $(basename "$source_file")"
         return 1
     fi
 }
@@ -402,13 +372,12 @@ transfer_file() {
 SOURCE_PATH=""
 DEST_PATH=""
 FILE_LIST=""
-RECURSIVE=false
-DRY_RUN=false
-KEEP_SOURCE=false
+RECURSIVE="false"
+DRY_RUN="false"
 STORAGE_CLASS="STANDARD"
 
 # Parse command line options
-while getopts ":hs:d:f:c:rnk" option; do
+while getopts ":hs:d:f:c:rn" option; do
     case $option in
         h) # Show help message
             Help
@@ -427,13 +396,10 @@ while getopts ":hs:d:f:c:rnk" option; do
             STORAGE_CLASS="$OPTARG"
             ;;
         r) # Recursive mode
-            RECURSIVE=true
+            RECURSIVE="true"
             ;;
         n) # Dry run
-            DRY_RUN=true
-            ;;
-        k) # Keep source (copy mode)
-            KEEP_SOURCE=true
+            DRY_RUN="true"
             ;;
         \?) # Invalid option
             echo "Invalid option: -$OPTARG"
@@ -452,7 +418,7 @@ done
 # Debugging settings
 set -euo pipefail
 
-print_header "S3 File Mover"
+print_header "S3 File Copier"
 
 echo "[$(timestamp)] Job started"
 echo "[$(timestamp)] Hostname: $(hostname)"
@@ -495,7 +461,6 @@ echo "[$(timestamp)] Resolved destination: $DEST_PATH ($DEST_TYPE)"
 echo "[$(timestamp)] Storage Class: $STORAGE_CLASS"
 echo "[$(timestamp)] Recursive: $RECURSIVE"
 echo "[$(timestamp)] Dry run: $DRY_RUN"
-echo "[$(timestamp)] Keep source: $KEEP_SOURCE"
 
 # Check if we have source files to process
 if [ -z "$SOURCE_PATH" ] && [ -z "$FILE_LIST" ]; then
@@ -527,7 +492,6 @@ if [ -n "$SOURCE_PATH" ]; then
         SOURCE_TYPE="S3"
         
         # Extract the directory name from S3 path for recursive operations
-        # e.g., s3://bucket/path/compbio/ -> compbio
         SOURCE_DIR_NAME=$(basename "${SOURCE_PATH%/}")
         
         # Check if source exists
@@ -540,7 +504,6 @@ if [ -n "$SOURCE_PATH" ]; then
         SOURCE_TYPE="Local"
         
         # Extract the directory name for recursive operations
-        # e.g., /path/to/compbio -> compbio
         SOURCE_DIR_NAME=$(basename "${SOURCE_PATH%/}")
         
         if ! validate_local_path "$SOURCE_PATH" "source"; then
@@ -662,21 +625,19 @@ if [ -n "$SOURCE_PATH" ] && [ -z "$FILE_LIST" ]; then
         
         if is_s3_path "$SOURCE_PATH"; then
             # S3 recursive listing
-            # Ensure SOURCE_PATH ends with /
             local_source_prefix="${SOURCE_PATH%/}/"
             
             # Get bucket name
             local_bucket=$(echo "$SOURCE_PATH" | sed 's|s3://||' | cut -d'/' -f1)
             
-            # Get the prefix within the bucket (everything after bucket name)
+            # Get the prefix within the bucket
             local_s3_prefix=$(echo "$SOURCE_PATH" | sed "s|s3://${local_bucket}/||" | sed 's|/$||')
             
             aws s3 ls "$local_source_prefix" --recursive 2>/dev/null | while IFS= read -r line; do
                 # Skip empty lines
                 [ -z "$line" ] && continue
                 
-                # Extract the file path (columns: date time size filepath)
-                # The filepath is everything from column 4 onwards
+                # Extract the file path
                 local_file_key=$(echo "$line" | awk '{for(i=4;i<=NF;i++) printf "%s ", $i; print ""}' | sed 's/ *$//')
                 
                 [ -z "$local_file_key" ] && continue
@@ -685,24 +646,22 @@ if [ -n "$SOURCE_PATH" ] && [ -z "$FILE_LIST" ]; then
                 local_source_file="s3://${local_bucket}/${local_file_key}"
                 
                 # Calculate relative path from the source prefix
-                # Remove the prefix to get the relative path
                 local_relative_path="${local_file_key#${local_s3_prefix}/}"
                 
-                # Build destination: DEST_PATH + SOURCE_DIR_NAME + relative_path
+                # Build destination
                 local_dest_file="${DEST_PATH}${SOURCE_DIR_NAME}/${local_relative_path}"
                 
                 echo "${local_source_file}|${local_dest_file}" >> "$TEMP_FILE_LIST"
             done
         else
             # Local recursive listing
-            # Ensure SOURCE_PATH doesn't end with /
             local_source_base="${SOURCE_PATH%/}"
             
             find "$local_source_base" -type f | while IFS= read -r local_file; do
                 # Calculate relative path from source directory
                 local_relative_path="${local_file#${local_source_base}/}"
                 
-                # Build destination: DEST_PATH + SOURCE_DIR_NAME + relative_path
+                # Build destination
                 local_dest_file="${DEST_PATH}${SOURCE_DIR_NAME}/${local_relative_path}"
                 
                 echo "${local_file}|${local_dest_file}" >> "$TEMP_FILE_LIST"
@@ -741,7 +700,7 @@ fi
 
 print_header "Processing Files"
 
-echo "[$(timestamp)] Starting file transfer..."
+echo "[$(timestamp)] Starting file copy..."
 echo
 
 # Initialize counters
@@ -782,8 +741,8 @@ while IFS='|' read -r source_file dest_file || [ -n "$source_file" ]; do
         fi
     fi
     
-    # Transfer the file
-    if transfer_file "$source_file" "$dest_file" "$KEEP_SOURCE" "$DRY_RUN" "$STORAGE_CLASS" "$file_transfer_type"; then
+    # Copy the file
+    if copy_file "$source_file" "$dest_file" "$DRY_RUN" "$STORAGE_CLASS" "$file_transfer_type"; then
         SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
         echo "$source_file" >> "$SUCCESS_LOG"
     else
@@ -801,7 +760,7 @@ done < "$TEMP_FILE_LIST"
 
 #################### Summary ####################
 
-print_header "Transfer Summary"
+print_header "Copy Summary"
 
 echo "[$(timestamp)] Job completed"
 echo
@@ -814,14 +773,13 @@ echo "  Skipped:               $SKIP_COUNT"
 echo
 echo "  Source:                ${SOURCE_PATH:-"(from file list)"}"
 echo "  Destination:           $DEST_PATH"
-echo "  Mode:                  $([ "$KEEP_SOURCE" = "true" ] && echo "COPY" || echo "MOVE")"
 echo "  Storage Class:         $STORAGE_CLASS"
 echo "  Dry run:               $DRY_RUN"
 echo
 
 # Report failed files if any
 if [ "$FAIL_COUNT" -gt 0 ]; then
-    echo "[$(timestamp)] WARNING: The following files failed to transfer:"
+    echo "[$(timestamp)] WARNING: The following files failed to copy:"
     while IFS= read -r file; do
         echo "  - $file"
     done < "$FAIL_LOG"

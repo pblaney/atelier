@@ -34,7 +34,6 @@ sbatch --job-name=[jobName] ~/atelier/bin/s3Mover.sh -s [source] -d [dest] [opti
 | **`-f [fileList]`** | Text file containing list of file paths to transfer (one per line) |
 | **`-r`** | Recursive mode - transfer all files in source directory |
 | **`-n`** | Dry run - preview without making changes |
-| **`-k`** | Keep source files (copy instead of move) |
 | **`-c [class]`** | S3 storage class for uploads (default: STANDARD; avail: GLACIER, DEEP_ARCHIVE) |
 | **`-h`** | Display help message |
 
