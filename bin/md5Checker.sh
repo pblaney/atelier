@@ -20,7 +20,7 @@ Help()
     echo "  Verify (-v)        - Check files against existing checksum file"
     echo
     echo "Usage:"
-    echo '  sbatch --job-name=[jobName] md5Checker.sh [options] -o [output]'
+    echo '  sbatch --job-name=[jobName] ~/atelier/bin/md5Checker.sh [options] -o [output]'
     echo
     echo "Required Arguments (one of the following):"
     echo "  -p [pattern]    File pattern/glob to match files (e.g., '*.bam', 'sample_*.fastq.gz')"
@@ -47,26 +47,26 @@ Help()
     echo "Usage Examples:"
     echo
     echo "  # Generate checksums for all BAM files in current directory"
-    echo '  sbatch --job-name=md5-bams md5Checker.sh -p "*.bam" -o my_bams'
+    echo '  sbatch --job-name=md5-bams ~/atelier/bin/md5Checker.sh -p "*.bam" -o my_bams'
     echo '  # Creates: md5sums-my_bams.txt'
     echo
     echo "  # Generate checksums for files listed in a text file"
-    echo '  sbatch --job-name=md5-list md5Checker.sh -f files_to_check.txt -o project_files'
+    echo '  sbatch --job-name=md5-list ~/atelier/bin/md5Checker.sh -f files_to_check.txt -o project_files'
     echo
     echo "  # Generate checksums recursively for a directory"
-    echo '  sbatch --job-name=md5-dir md5Checker.sh -s /data/project/ -r -o project_backup'
+    echo '  sbatch --job-name=md5-dir ~/atelier/bin/md5Checker.sh -s /data/project/ -r -o project_backup'
     echo
     echo "  # Verify files against existing checksum file"
-    echo '  sbatch --job-name=md5-verify md5Checker.sh -v -o md5sums-my_bams.txt'
+    echo '  sbatch --job-name=md5-verify ~/atelier/bin/md5Checker.sh -v -o md5sums-my_bams.txt'
     echo
     echo "  # Verify specific files against checksum file"
-    echo '  sbatch --job-name=md5-verify md5Checker.sh -v -p "*.bam" -o md5sums-my_bams.txt'
+    echo '  sbatch --job-name=md5-verify ~/atelier/bin/md5Checker.sh -v -p "*.bam" -o md5sums-my_bams.txt'
     echo
     echo "  # Dry run to preview files that would be processed"
-    echo '  sbatch --job-name=md5-preview md5Checker.sh -p "*.fastq.gz" -o test -n'
+    echo '  sbatch --job-name=md5-preview ~/atelier/bin/md5Checker.sh -p "*.fastq.gz" -o test -n'
     echo
     echo "  # Append checksums to existing file"
-    echo '  sbatch --job-name=md5-append md5Checker.sh -p "*.bam" -o existing_checksums -a'
+    echo '  sbatch --job-name=md5-append ~/atelier/bin/md5Checker.sh -p "*.bam" -o existing_checksums -a'
     echo
     echo "Checksum File Format:"
     echo "  The output file follows standard md5sum format:"
