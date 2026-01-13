@@ -4,8 +4,8 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=4G
 #SBATCH --time=18:00:00
-#SBATCH --mail-user=patrick.blaney@nyulangone.org
 #SBATCH --mail-type=BEGIN,FAIL,END
+#SBATCH --mail-user=patrick.blaney@nyulangone.org
 #SBATCH --output=log-s3Mover-%x.out
 
 #################### Help Message ####################
@@ -457,7 +457,6 @@ print_header "S3 File Mover"
 echo "[$(timestamp)] Job started"
 echo "[$(timestamp)] Hostname: $(hostname)"
 echo "[$(timestamp)] Working directory: $(pwd)"
-echo
 
 #################### Validate Inputs ####################
 

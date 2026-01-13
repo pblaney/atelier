@@ -101,10 +101,3 @@ sbatch --job-name=preview ~/atelier/bin/s3Mover.sh \
 ```
 
 ---
-
-### Requirements
-
-- AWS CLI v2 (configured with appropriate credentials)
-- Bash 4.0+
-- SLURM workload manager
-- Read/write access to source and destination S3 buckets

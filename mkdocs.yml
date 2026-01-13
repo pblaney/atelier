@@ -37,6 +37,7 @@ nav:
   - Scripts: scripts.md
   - Reference:
       - s3Mover: "man/s3mover.md"
+      - md5Checker: "man/md5checker.md"
   - Resources: resources.md
   - Templates: templates.md
 
