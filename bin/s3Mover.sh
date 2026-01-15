@@ -637,8 +637,14 @@ if [ -n "$SOURCE_PATH" ] && [ -z "$FILE_LIST" ]; then
                 # Skip empty lines
                 [ -z "$line" ] && continue
                 
-                # Extract the file path
+                # Extract the size (third field) and file path
+                local_file_size=$(echo "$line" | awk '{print $3}')
                 local_file_key=$(echo "$line" | awk '{for(i=4;i<=NF;i++) printf "%s ", $i; print ""}' | sed 's/ *$//')
+                
+                # Skip if size is 0 (this is a directory marker) or file_key ends with /
+                if [ "$local_file_size" -eq 0 ] || [[ "$local_file_key" == */ ]]; then
+                    continue
+                fi
                 
                 [ -z "$local_file_key" ] && continue
                 
