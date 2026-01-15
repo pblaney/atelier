@@ -12,6 +12,6 @@ Man pages for scripts
 
 Files, websites, software, and papers I find useful.
 
-## [Templates](templates.md)
+### Recipes
 
 Files to use as a starting point for scripts, READMEs, and other things

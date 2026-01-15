@@ -13,9 +13,13 @@ theme:
     - navigation.tabs
     - navigation.top
     - navigation.footer
+    - navigation.path
+    - navigation.prune
     - search.suggest
     - search.highlight
     - toc.integrate
+    - content.code.copy
+    - content.tabs.link
   palette:
     # Dark mode
     - scheme: slate
@@ -39,9 +43,11 @@ nav:
       - s3Mover: "man/s3mover.md"
       - md5Checker: "man/md5checker.md"
   - Resources: resources.md
-  - Templates: templates.md
+  - Recipes:
+      - AWS user-collaborator: "recipes/user-collaborator.md"
 
 markdown_extensions:
+  - admonition
   - attr_list
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
@@ -53,7 +59,10 @@ markdown_extensions:
       pygments_lang_class: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
+  - pymdownx.details
   - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
 
 extra:
   social:
@@ -61,3 +70,5 @@ extra:
       link: https://github.com/pblaney/atelier
     - icon: fontawesome/brands/orcid
       link: https://orcid.org/0000-0002-9319-8866
+
+copyright: Copyright &copy; 2026 Patrick Blaney
