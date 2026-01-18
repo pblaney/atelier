@@ -22,7 +22,7 @@ Help()
     echo "  - S3 to S3 (copy within/across buckets)"
     echo
     echo "Usage:"
-    echo '  sbatch --job-name=[jobName] s3Mover.sh -s [source] -d [dest] [options]'
+    echo '  sbatch --job-name=[jobName] ~/atelier/bin/s3Mover.sh -s [source] -d [dest] [options]'
     echo
     echo "Required Arguments:"
     echo "  -s [source]     Source path - can be:"
