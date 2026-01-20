@@ -40,9 +40,10 @@ nav:
   - Home: index.md
   - Scripts: scripts.md
   - Reference:
+      - bamCleaner: "man/bamcleaner.md"
       - md5Checker: "man/md5checker.md"
       - s3Mover: "man/s3mover.md"
-      - sraPrefetcher: "man/sraPrefetcher.md"
+      - sraPrefetcher: "man/sraprefetcher.md"
   - Resources: resources.md
   - Recipes:
       - AWS user-collaborator: "recipes/user-collaborator.md"
