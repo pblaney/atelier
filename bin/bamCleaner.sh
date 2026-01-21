@@ -204,6 +204,13 @@ validate_bam() {
     
     echo "[$(timestamp)] Validating BAM: $(basename "$bam_file")"
     
+    # Check for valid header
+    if samtools view -H "$bam_file" 2>/dev/null | grep -q "^@HD"; then
+        echo "[$(timestamp)]   ✓ Valid SAM header detected"
+    else
+        echo "[$(timestamp)] WARNING: Could not detect SAM header"
+    fi
+    
     # Quick check for file integrity
     if ! samtools quickcheck "$bam_file" 2>/dev/null; then
         echo "[$(timestamp)] ✗ Quick check FAILED - BAM file is corrupted"
@@ -216,21 +223,6 @@ validate_bam() {
     local read_count
     read_count=$(samtools view -c "$bam_file" 2>/dev/null)
     echo "[$(timestamp)]   Total reads: $read_count"
-    
-    # Check for valid header
-    if samtools view -H "$bam_file" 2>/dev/null | grep -q "^@HD"; then
-        echo "[$(timestamp)]   ✓ Valid SAM header detected"
-    else
-        echo "[$(timestamp)] WARNING: Could not detect SAM header"
-    fi
-    
-    # Count mapped vs unmapped
-    local mapped_count
-    local unmapped_count
-    mapped_count=$(samtools view -c -F 4 "$bam_file" 2>/dev/null || echo "0")
-    unmapped_count=$(samtools view -c -f 4 "$bam_file" 2>/dev/null || echo "0")
-    echo "[$(timestamp)]   Mapped reads: $mapped_count"
-    echo "[$(timestamp)]   Unmapped reads: $unmapped_count"
     
     # Verbose validation
     if [ "$verbose" = "true" ]; then
@@ -316,8 +308,8 @@ clean_bam() {
     # Add multi-threading
     samtools_cmd="$samtools_cmd -@ $threads"
     
-    # Output as BAM
-    samtools_cmd="$samtools_cmd -b"
+    # Output as BAM with header
+    samtools_cmd="$samtools_cmd -hb"
     
     # Filter unmapped reads with non-zero MAPQ
     if [ "$remove_unmapped" = "true" ]; then
@@ -522,7 +514,7 @@ print_header "Environment Setup"
 # Try to load SAMtools module
 if command -v module &> /dev/null; then
     echo "[$(timestamp)] Loading SAMtools module..."
-    module load samtools 2>/dev/null || module load SAMtools 2>/dev/null || echo "[$(timestamp)] No SAMtools module found, checking system PATH"
+    module load samtools/1.20 2>/dev/null || module load SAMtools 2>/dev/null || echo "[$(timestamp)] No SAMtools module found, checking system PATH"
     module list -t 2>&1 | grep -i samtools || true
 fi
 
