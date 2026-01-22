@@ -364,7 +364,6 @@ print_header "MD5 Checksum Tool"
 echo "[$(timestamp)] Job started"
 echo "[$(timestamp)] Hostname: $(hostname)"
 echo "[$(timestamp)] Working directory: $(pwd)"
-echo
 
 #################### Validate Inputs ####################
 
@@ -632,7 +631,6 @@ else
 fi
 
 echo "[$(timestamp)] Starting processing..."
-echo
 
 # Initialize counters
 SUCCESS_COUNT=0

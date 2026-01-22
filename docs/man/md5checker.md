@@ -13,7 +13,7 @@ last_updated: 2026-01-12
 
 ## Overview
 
-A robust method calculating MD5 checksums for files or verifies files against existing checksums. It supports batch processing via file patterns, file lists, or directory recursion.
+Calculates MD5 checksums for files or verifies files against existing checksums. It supports batch processing via file patterns, file lists, or directory recursion.
 
 ---
 

@@ -366,7 +366,6 @@ print_header "SRA Prefetcher"
 echo "[$(timestamp)] Job started"
 echo "[$(timestamp)] Hostname: $(hostname)"
 echo "[$(timestamp)] Working directory: $(pwd)"
-echo
 
 #################### Validate Inputs ####################
 
@@ -440,7 +439,6 @@ if ! command -v prefetch &> /dev/null; then
 fi
 
 echo "[$(timestamp)] SRA Toolkit version: $(prefetch --version 2>&1 | head -1)"
-echo
 
 # Configure vdb-config to download to output directory
 if [ "$DRY_RUN" = "false" ]; then

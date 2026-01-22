@@ -1,9 +1,10 @@
 #!/bin/bash
+#SBATCH --partition=cpu_medium
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=4G
-#SBATCH --time=3-00:00:00
+#SBATCH --time=18:00:00
 #SBATCH --mail-type=BEGIN,FAIL,END
 #SBATCH --mail-user=patrick.blaney@nyulangone.org
 #SBATCH --output=log-bamCleaner-%x.out
@@ -35,7 +36,6 @@ Help()
     echo "  -t [threads]    Number of threads to use (default: auto-detect)"
     echo "  -r              Remove unmapped reads entirely (default: keep with MAPQ=0)"
     echo "  -n              Dry run - show what would be processed"
-    echo "  -v              Verbose output with detailed validation"
     echo "  -h              Print this help message"
     echo
     echo "File List Format (for batch processing):"
@@ -60,9 +60,6 @@ Help()
     echo "  # Use specific number of threads"
     echo '  sbatch --job-name=clean-threads ~/atelier/bin/bamCleaner.sh -i sample.bam -t 8'
     echo
-    echo "  # Verbose output with detailed validation"
-    echo '  sbatch --job-name=clean-verbose ~/atelier/bin/bamCleaner.sh -i sample.bam -v'
-    echo
     echo "  # Dry run to preview operations"
     echo '  sbatch --job-name=clean-preview ~/atelier/bin/bamCleaner.sh -i sample.bam -n'
     echo
@@ -74,7 +71,7 @@ Help()
     echo "  - SAMtools must be available (samtools module)"
     echo "  - Output BAM files are automatically validated and indexed"
     echo "  - Original files are never modified"
-    echo "  - Validation includes integrity check and read statistics"
+    echo "  - Validation uses samtools quickcheck for speed"
     echo
 }
 
@@ -192,24 +189,16 @@ get_cpu_count() {
     fi
 }
 
-# Function to validate BAM file (required after cleaning)
+# Function to validate BAM file (quick check only)
 validate_bam() {
     local bam_file="$1"
-    local verbose="$2"
     
     if [ ! -f "$bam_file" ]; then
         echo "[$(timestamp)] ERROR: BAM file not found: $bam_file"
         return 1
     fi
     
-    echo "[$(timestamp)] Validating BAM: $(basename "$bam_file")"
-    
-    # Check for valid header
-    if samtools view -H "$bam_file" 2>/dev/null | grep -q "^@HD"; then
-        echo "[$(timestamp)]   ✓ Valid SAM header detected"
-    else
-        echo "[$(timestamp)] WARNING: Could not detect SAM header"
-    fi
+    echo "[$(timestamp)] Validating cleaned BAM: $(basename "$bam_file")"
     
     # Quick check for file integrity
     if ! samtools quickcheck "$bam_file" 2>/dev/null; then
@@ -218,51 +207,17 @@ validate_bam() {
     fi
     
     echo "[$(timestamp)] ✓ Quick check PASSED"
-    
-    # Count reads
-    local read_count
-    read_count=$(samtools view -c "$bam_file" 2>/dev/null)
-    echo "[$(timestamp)]   Total reads: $read_count"
-    
-    # Verbose validation
-    if [ "$verbose" = "true" ]; then
-        echo "[$(timestamp)] Running extended validation..."
-        
-        # Check for read duplicates
-        local duplicate_count
-        duplicate_count=$(samtools view -c -F 1024 "$bam_file" 2>/dev/null || echo "0")
-        echo "[$(timestamp)]   Non-duplicate reads: $duplicate_count"
-        
-        # Check secondary alignments
-        local secondary_count
-        secondary_count=$(samtools view -c -f 256 "$bam_file" 2>/dev/null || echo "0")
-        echo "[$(timestamp)]   Secondary alignments: $secondary_count"
-        
-        # Validate all reads
-        echo "[$(timestamp)]   Running full BAM validation (this may take a moment)..."
-        local validation_output
-        validation_output=$(samtools view -c "$bam_file" 2>&1 | tail -1)
-        if [[ "$validation_output" =~ ^[0-9]+$ ]]; then
-            echo "[$(timestamp)] ✓ Full validation completed successfully"
-        else
-            echo "[$(timestamp)] WARNING: Could not complete full validation"
-        fi
-    fi
-    
     return 0
 }
 
-# Function to get BAM file statistics
+# Function to get BAM file size only
 get_bam_stats() {
     local bam_file="$1"
     
     local file_size
     file_size=$(stat --printf="%s" "$bam_file" 2>/dev/null || stat -f%z "$bam_file" 2>/dev/null || echo "0")
     
-    local read_count
-    read_count=$(samtools view -c "$bam_file" 2>/dev/null || echo "0")
-    
-    echo "$file_size|$read_count"
+    echo "$file_size"
 }
 
 # Function to clean a single BAM file
@@ -272,20 +227,16 @@ clean_bam() {
     local threads="$3"
     local remove_unmapped="$4"
     local dry_run="$5"
-    local verbose="$6"
     
-    # Get file statistics
-    local input_stats
-    input_stats=$(get_bam_stats "$input_bam")
+    # Get file size
     local input_size
-    local input_reads
-    IFS='|' read -r input_size input_reads <<< "$input_stats"
+    input_size=$(get_bam_stats "$input_bam")
     
     local formatted_input_size
     formatted_input_size=$(format_size "$input_size")
     
     if [ "$dry_run" = "true" ]; then
-        echo "[$(timestamp)] [DRY RUN] Would clean: $(basename "$input_bam") ($formatted_input_size, $input_reads reads)"
+        echo "[$(timestamp)] [DRY RUN] Would clean: $(basename "$input_bam") ($formatted_input_size)"
         if [ "$remove_unmapped" = "true" ]; then
             echo "[$(timestamp)] [DRY RUN] Mode: Remove unmapped reads entirely"
         else
@@ -297,10 +248,9 @@ clean_bam() {
         return 0
     fi
     
-    echo "[$(timestamp)]   Processing: $(basename "$input_bam")"
-    echo "[$(timestamp)]   Input size: $formatted_input_size"
-    echo "[$(timestamp)]   Total reads: $input_reads"
-    echo "[$(timestamp)]   Threads: $threads"
+    echo "[$(timestamp)] Processing $(basename "$input_bam")..."
+    echo "[$(timestamp)]   Input size - $formatted_input_size"
+    echo "[$(timestamp)]   Threads - $threads"
     
     # Build samtools command
     local samtools_cmd="samtools view"
@@ -315,10 +265,10 @@ clean_bam() {
     if [ "$remove_unmapped" = "true" ]; then
         # -F 4: exclude unmapped reads
         samtools_cmd="$samtools_cmd -F 4"
-        echo "[$(timestamp)] Mode: Remove unmapped reads"
+        echo "[$(timestamp)]   Mode - Remove unmapped reads"
     else
         # Keep all reads but fix MAPQ for unmapped ones
-        echo "[$(timestamp)] Mode: Fix MAPQ for unmapped reads (set to 0)"
+        echo "[$(timestamp)]   Mode - Fix MAPQ for unmapped reads (set to 0)"
     fi
     
     local start_time
@@ -356,24 +306,21 @@ clean_bam() {
     fi
     echo "[$(timestamp)] ✓ Index created"
     
-    # Get output statistics
-    local output_stats
-    output_stats=$(get_bam_stats "$output_bam")
+    # Get output size
     local output_size
-    local output_reads
-    IFS='|' read -r output_size output_reads <<< "$output_stats"
+    output_size=$(get_bam_stats "$output_bam")
     
     local formatted_output_size
     formatted_output_size=$(format_size "$output_size")
     
     echo "[$(timestamp)] SUCCESS: Cleaned BAM created"
-    echo "[$(timestamp)]   Output size: $formatted_output_size"
-    echo "[$(timestamp)]   Output reads: $output_reads"
-    echo "[$(timestamp)]   Cleaning time: $formatted_duration"
+    echo "[$(timestamp)]   Output - $(basename "$output_bam")"
+    echo "[$(timestamp)]   Output size - $formatted_output_size"
+    echo "[$(timestamp)]   Cleaning time - $formatted_duration"
     
     # Automatic validation after cleaning
     echo "[$(timestamp)] Running automatic validation..."
-    if validate_bam "$output_bam" "$verbose"; then
+    if validate_bam "$output_bam"; then
         echo "[$(timestamp)] ✓✓✓ BAM validation PASSED - File is ready to use"
         return 0
     else
@@ -391,10 +338,9 @@ OUTPUT_PREFIX=""
 THREADS=""
 REMOVE_UNMAPPED="false"
 DRY_RUN="false"
-VERBOSE="false"
 
 # Parse command line options
-while getopts ":hi:o:p:t:rnv" option; do
+while getopts ":hi:o:p:t:rn" option; do
     case $option in
         h) # Show help message
             Help
@@ -418,9 +364,6 @@ while getopts ":hi:o:p:t:rnv" option; do
         n) # Dry run
             DRY_RUN="true"
             ;;
-        v) # Verbose
-            VERBOSE="true"
-            ;;
         \?) # Invalid option
             echo "Invalid option: -$OPTARG"
             Help
@@ -443,7 +386,6 @@ print_header "BAM Cleaner"
 echo "[$(timestamp)] Job started"
 echo "[$(timestamp)] Hostname: $(hostname)"
 echo "[$(timestamp)] Working directory: $(pwd)"
-echo
 
 #################### Validate Inputs ####################
 
@@ -504,7 +446,6 @@ fi
 echo "[$(timestamp)] Threads to use: $THREADS"
 echo "[$(timestamp)] Remove unmapped reads: $REMOVE_UNMAPPED"
 echo "[$(timestamp)] Validation: Automatic (always performed)"
-echo "[$(timestamp)] Verbose output: $VERBOSE"
 echo "[$(timestamp)] Dry run: $DRY_RUN"
 
 #################### Load SAMtools ####################
@@ -525,7 +466,6 @@ if ! command -v samtools &> /dev/null; then
 fi
 
 echo "[$(timestamp)] SAMtools version: $(samtools --version | head -1)"
-echo
 
 #################### Build BAM File List ####################
 
@@ -580,13 +520,25 @@ fi
 echo "[$(timestamp)] Total BAM files to process: $TOTAL_BAMS"
 echo
 
-# Preview first few BAM files
-echo "[$(timestamp)] First 5 BAM files to process:"
-head -5 "$TEMP_BAM_LIST" | while IFS= read -r bam; do
-    local_size=$(format_size "$(stat --printf="%s" "$bam" 2>/dev/null || stat -f%z "$bam" 2>/dev/null || echo "0")")
-    echo "  - $(basename "$bam") ($local_size)"
-done
-if [ "$TOTAL_BAMS" -gt 5 ]; then
+# Preview BAM files based on total count
+if [ "$TOTAL_BAMS" -eq 1 ]; then
+    echo "[$(timestamp)] BAM file to process:"
+    cat "$TEMP_BAM_LIST" | while IFS= read -r bam; do
+        local_size=$(format_size "$(stat --printf="%s" "$bam" 2>/dev/null || stat -f%z "$bam" 2>/dev/null || echo "0")")
+        echo "  - $(basename "$bam") ($local_size)"
+    done
+elif [ "$TOTAL_BAMS" -le 5 ]; then
+    echo "[$(timestamp)] All $TOTAL_BAMS BAM files to process:"
+    cat "$TEMP_BAM_LIST" | while IFS= read -r bam; do
+        local_size=$(format_size "$(stat --printf="%s" "$bam" 2>/dev/null || stat -f%z "$bam" 2>/dev/null || echo "0")")
+        echo "  - $(basename "$bam") ($local_size)"
+    done
+else
+    echo "[$(timestamp)] First 5 of $TOTAL_BAMS BAM files to process:"
+    head -5 "$TEMP_BAM_LIST" | while IFS= read -r bam; do
+        local_size=$(format_size "$(stat --printf="%s" "$bam" 2>/dev/null || stat -f%z "$bam" 2>/dev/null || echo "0")")
+        echo "  - $(basename "$bam") ($local_size)"
+    done
     echo "  ... and $((TOTAL_BAMS - 5)) more files"
 fi
 
@@ -596,7 +548,6 @@ print_header "Cleaning BAM Files"
 
 echo "[$(timestamp)] Starting BAM cleaning..."
 echo "[$(timestamp)] All output files will be automatically validated"
-echo
 
 # Initialize counters
 SUCCESS_COUNT=0
@@ -629,10 +580,8 @@ while IFS= read -r input_bam || [ -n "$input_bam" ]; do
         output_bam="${OUTPUT_DIR}/${local_bam_base}.cleaned.bam"
     fi
     
-    echo "[$(timestamp)] Output: $(basename "$output_bam")"
-    
     # Clean the BAM file (validation is automatic)
-    if clean_bam "$input_bam" "$output_bam" "$THREADS" "$REMOVE_UNMAPPED" "$DRY_RUN" "$VERBOSE"; then
+    if clean_bam "$input_bam" "$output_bam" "$THREADS" "$REMOVE_UNMAPPED" "$DRY_RUN"; then
         SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
         echo "$input_bam" >> "$SUCCESS_LOG"
     else
@@ -660,7 +609,7 @@ echo "[$(timestamp)] Job completed"
 echo
 echo "------------------  FINAL RESULTS  -------------------------"
 echo
-echo "  Total BAM files:       $TOTAL_BAMS"
+echo "  Total BAM files:        $TOTAL_BAMS"
 echo "  Successfully validated: $SUCCESS_COUNT"
 echo "  Failed/invalid:         $FAIL_COUNT"
 echo

@@ -15,7 +15,7 @@ last_updated: 2026-01-09
 
 ## Overview
 
-A robust method for bidirectional transfer support between local and Amazon S3 locations. It supports batch processing of multiple files, recursive directory operations, and includes comprehensive progress reporting suitable for long-running SLURM jobs.
+Bidirectional transfer support between local and Amazon S3 locations. It supports batch processing of multiple files, recursive directory operations, and includes comprehensive progress reporting suitable for long-running SLURM jobs.
 
 ---
 

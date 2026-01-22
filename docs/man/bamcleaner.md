@@ -14,7 +14,7 @@ last_updated: 2026-01-20
 
 ## Overview
 
-A robust method that cleans up BAM files by fixing MAPQ issues in unmapped reads and automatically validates BAM file integrity.
+Cleans up BAM files by fixing MAPQ issues in unmapped reads and automatically validates BAM file integrity.
 
 ---
 
@@ -34,7 +34,6 @@ sbatch --job-name=[jobName] ~/atelier/bin/bamCleaner.sh -i [input] [options]
 | **`-t [threads]`** | Number of threads to use (default: auto-detect) |
 | **`-r`** | Remove unmapped reads entirely (default: keep with MAPQ=0) |
 | **`-n`** | Dry run |
-| **`-v`** | Verbose output with detailed validation |
 | **`-h`** | Display help message |
 
 ### Examples
@@ -56,13 +55,6 @@ Batch processing with automatic validation
 ``` bash
 sbatch --job-name=clean-batch ~/atelier/bin/bamCleaner.sh \
     -i bam_list.txt
-```
-
-Verbose output with detailed validation
-``` bash
-sbatch --job-name=clean-verbose ~/atelier/bin/bamCleaner.sh \
-    -i sample.bam \
-    -v
 ```
 
 Dry run (shows what would happen, including validation)

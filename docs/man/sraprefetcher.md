@@ -14,7 +14,7 @@ last_updated: 2026-01-12
 
 ## Overview
 
-A robust method prefetching SRA data from NCBI using the SRA Toolkit. Supports both public and controlled-access (dbGaP) data.
+Prefetch SRA data from NCBI using the SRA Toolkit. Supports both public and controlled-access (dbGaP) data.
 
 ---
 
