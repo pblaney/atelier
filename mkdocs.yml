@@ -44,6 +44,7 @@ nav:
       - fileRenamer: "man/filerenamer.md"
       - md5Checker: "man/md5checker.md"
       - s3Mover: "man/s3mover.md"
+      - sraFastqExtractor: "man/srafastqextractor.md"
       - sraPrefetcher: "man/sraprefetcher.md"
   - Resources: resources.md
   - Recipes:

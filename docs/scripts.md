@@ -6,4 +6,5 @@ A collection of scripts
 | [`fileRenamer.sh`](man/filerenamer.md) | Rename sets of files |
 | [`md5Checker.sh`](man/md5checker.md) | Generate/verify MD5 checksums |
 | [`s3Mover.sh`](man/s3mover.md) | Copy files between local and S3 locations |
+| [`sraFastqExtractor.sh`](man/srafastqextractor.md) | Extract FASTQs from prefetched SRA data |
 | [`sraPrefetcher.sh`](man/sraprefetcher.md) | Prefetch SRA data from NCBI |
