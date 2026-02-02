@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem-per-cpu=4G
+#SBATCH --cpus-per-task=6
+#SBATCH --mem-per-cpu=12G
 #SBATCH --time=5-00:00:00
 #SBATCH --mail-type=BEGIN,FAIL,END
 #SBATCH --mail-user=patrick.blaney@nyulangone.org
@@ -19,7 +19,7 @@ Help()
     echo "  - Extract FASTQ files from SRA accessions"
     echo "  - Support for controlled-access data with dbGaP keys"
     echo "  - Automatic gzip compression of output FASTQs"
-    echo "  - Multi-threaded processing (8 threads, 4GB memory)"
+    echo "  - Multi-threaded processing (6 threads, 12GB memory per thread)"
     echo "  - Batch processing from accession list"
     echo "  - Temporary file cleanup"
     echo
@@ -361,8 +361,8 @@ BASE_DIR=""
 NGC_FILE=""
 
 # Hard-set threads and memory from SLURM header
-THREADS=8
-MEMORY=4
+THREADS=6
+MEMORY=12
 
 DRY_RUN="false"
 VERBOSE="false"
@@ -479,9 +479,6 @@ if ! command -v fasterq-dump &> /dev/null; then
     echo "[$(timestamp)] ERROR: fasterq-dump is not installed or not in PATH"
     exit 1
 fi
-
-echo "[$(timestamp)] fasterq-dump version: $(fasterq-dump --version 2>&1 | head -1)"
-echo
 
 #################### Build Accession List ####################
 
