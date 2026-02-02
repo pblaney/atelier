@@ -2,7 +2,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=6
-#SBATCH --mem-per-cpu=12G
+#SBATCH --mem=72G
 #SBATCH --time=5-00:00:00
 #SBATCH --mail-type=BEGIN,FAIL,END
 #SBATCH --mail-user=patrick.blaney@nyulangone.org
@@ -19,7 +19,7 @@ Help()
     echo "  - Extract FASTQ files from SRA accessions"
     echo "  - Support for controlled-access data with dbGaP keys"
     echo "  - Automatic gzip compression of output FASTQs"
-    echo "  - Multi-threaded processing (6 threads, 12GB memory per thread)"
+    echo "  - Multi-threaded processing (6 threads, 2GB memory per thread)"
     echo "  - Batch processing from accession list"
     echo "  - Temporary file cleanup"
     echo
@@ -362,7 +362,7 @@ NGC_FILE=""
 
 # Hard-set threads and memory from SLURM header
 THREADS=6
-MEMORY=12
+MEMORY=2
 
 DRY_RUN="false"
 VERBOSE="false"
