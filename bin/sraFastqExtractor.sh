@@ -316,9 +316,9 @@ extract_fastq() {
     echo "[$(timestamp)] ✓ FASTQ extraction completed in $formatted_duration"
     
     # Compress FASTQ files
-    echo "[$(timestamp)] Compressing FASTQ files with gzip..."
+    echo "[$(timestamp)] Compressing FASTQ files with pigz..."
     if [ -n "$(find . -maxdepth 1 -name "*.fastq" -type f)" ]; then
-        if gzip *.fastq; then
+        if pigz --processes "$threads" *.fastq; then
             echo "[$(timestamp)] ✓ Compression completed"
         else
             echo "[$(timestamp)] WARNING: Compression encountered issues"
