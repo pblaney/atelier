@@ -296,7 +296,7 @@ extract_fastq() {
     
     # Execute fasterq-dump
     if ! eval "$fasterq_cmd"; then
-        echo "[$(timestamp)] FAILED: fasterq-dump extraction failed"
+        echo "[$(timestamp)] FAILED: fasterq-dump extraction failed for $accession"
         
         # Clean up temp directory
         echo "[$(timestamp)] Cleaning up temporary files..."
