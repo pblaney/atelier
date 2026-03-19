@@ -455,7 +455,7 @@ print_header "Environment Setup"
 # Try to load SAMtools module
 if command -v module &> /dev/null; then
     echo "[$(timestamp)] Loading SAMtools module..."
-    module load samtools/1.20 2>/dev/null || module load SAMtools 2>/dev/null || echo "[$(timestamp)] No SAMtools module found, checking system PATH"
+    module load samtools/1.14 2>/dev/null || module load SAMtools 2>/dev/null || echo "[$(timestamp)] No SAMtools module found, checking system PATH"
     module list -t 2>&1 | grep -i samtools || true
 fi
 
