@@ -2,7 +2,7 @@
 #SBATCH --partition=cpu_medium
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8s
+#SBATCH --cpus-per-task=8
 #SBATCH --mem-per-cpu=2G
 #SBATCH --time=1-00:00:00
 #SBATCH --mail-type=BEGIN,FAIL,END
