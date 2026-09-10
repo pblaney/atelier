@@ -3,6 +3,7 @@ A collection of scripts
 | Script | Description |
 |--------|-------------|
 | [`bamCleaner.sh`](man/bamcleaner.md) | Tidy up BAMs with invalid MAPQs |
+| [`bamMerger.sh`](man/bammerger.md) | Merge multiple BAMs into one |
 | [`cramConverter.sh`](man/cramconverter.md) | Convert CRAMs to BAMs |
 | [`fileRenamer.sh`](man/filerenamer.md) | Rename sets of files |
 | [`md5Checker.sh`](man/md5checker.md) | Generate/verify MD5 checksums |

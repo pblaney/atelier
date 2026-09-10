@@ -41,6 +41,8 @@ nav:
   - Scripts: scripts.md
   - Reference:
       - bamCleaner: "man/bamcleaner.md"
+      - bamMerger: "man/bammerger.md"
+      - cramConverter: "man/cramconverter.md"
       - fileRenamer: "man/filerenamer.md"
       - md5Checker: "man/md5checker.md"
       - s3Mover: "man/s3mover.md"
