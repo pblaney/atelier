@@ -36,16 +36,16 @@ Help()
     echo "Usage Examples:"
     echo
     echo "  # Basic rename from mapping file"
-    echo '  fileRenamer.sh -f rename_list.txt'
+    echo '  ~/atelier/bin/fileRenamer.sh -f rename_list.txt'
     echo
     echo "  # Dry run to preview changes"
-    echo '  fileRenamer.sh -f rename_list.txt -n'
+    echo '  ~/atelier/bin/fileRenamer.sh -f rename_list.txt -n'
     echo
     echo "  # Rename files in specific directory"
-    echo '  fileRenamer.sh -f rename_list.txt -d /data/samples/'
+    echo '  ~/atelier/bin/fileRenamer.sh -f rename_list.txt -d /data/samples/'
     echo
     echo "  # Verbose output with detailed logging"
-    echo '  fileRenamer.sh -f rename_list.txt -v'
+    echo '  ~/atelier/bin/fileRenamer.sh -f rename_list.txt -v'
     echo
     echo "  # Combine options"
     echo '  fileRenamer.sh -f rename_list.txt -d /data/samples/ -n -v'
