@@ -3,8 +3,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
-#SBATCH --mem-per-cpu=2G
-#SBATCH --time=3-00:00:00
+#SBATCH --mem-per-cpu=8G
+#SBATCH --time=2-00:00:00
 #SBATCH --mail-type=BEGIN,FAIL,END
 #SBATCH --mail-user=patrick.blaney@nyulangone.org
 #SBATCH --output=log-bamMerger-%x.out
