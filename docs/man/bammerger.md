@@ -2,7 +2,7 @@
 layout: script
 title: Atelier
 description: Merge multiple BAM files into a single BAM file
-script_name: bamCleaner.sh
+script_name: bamMerger.sh
 category: HPC
 tags:
   - bam
@@ -50,7 +50,7 @@ sbatch --job-name=bam-merge ~/atelier/bin/bamMerger.sh \
     -o /output/merged.bam
 ```
 
-# Dry run preview
+Dry run preview
 ``` bash
 sbatch --job-name=bam-preview ~/atelier/bin/bamMerger.sh \
     -i /path/to/bams/ \
