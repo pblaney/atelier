@@ -368,7 +368,6 @@ if [[ "$OUTPUT_BAM" != /* ]]; then
 fi
 
 # Ensure output directory exists
-local output_dir
 output_dir=$(dirname "$OUTPUT_BAM")
 if [ ! -d "$output_dir" ]; then
     echo "[$(timestamp)] ERROR: Output directory does not exist: $output_dir"
